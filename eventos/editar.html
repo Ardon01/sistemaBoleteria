@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Evento{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Editar Evento</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre del Evento</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" value="{{ evento.nombre }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="4" required>{{ evento.descripcion }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>
+                                <input type="datetime-local" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ evento.fecha_inicio|date:'Y-m-d\TH:i' }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="fecha_fin" class="form-label">Fecha de Fin</label>
+                                <input type="datetime-local" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ evento.fecha_fin|date:'Y-m-d\TH:i' }}" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="lugar" class="form-label">Lugar</label>
+                            <input type="text" class="form-control" id="lugar" name="lugar" value="{{ evento.lugar }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="estado" class="form-label">Estado</label>
+                            <select class="form-select" id="estado" name="estado" required>
+                                <option value="activo" {% if evento.estado == 'activo' %}selected{% endif %}>Activo</option>
+                                <option value="cancelado" {% if evento.estado == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                                <option value="finalizado" {% if evento.estado == 'finalizado' %}selected{% endif %}>Finalizado</option>
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                            <a href="{% url 'eventos:detalle' evento.id %}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Procesar Pago{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-credit-card"></i> Procesar Pago</h3>
+                </div>
+                <div class="card-body p-4">
+                    <h5>Resumen de Compra</h5>
+                    <ul class="list-group mb-4">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Evento:</span>
+                            <strong>{{ evento_nombre }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Categoría:</span>
+                            <strong>{{ categoria_nombre }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Cantidad:</span>
+                            <strong>{{ cantidad }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Precio unitario:</span>
+                            <strong>L. {{ precio_unitario }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between bg-light">
+                            <span><strong>Total:</strong></span>
+                            <strong class="text-primary">L. {{ total }}</strong>
+                        </li>
+                    </ul>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="metodo_pago" class="form-label">Método de Pago</label>
+                            <select class="form-select" id="metodo_pago" name="metodo_pago" required>
+                                <option value="tarjeta">Tarjeta de Crédito/Débito</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia Bancaria</option>
+                            </select>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Este es un pago simulado para fines de demostración.
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 btn-lg">
+                            Confirmar Pago <i class="bi bi-check-circle"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

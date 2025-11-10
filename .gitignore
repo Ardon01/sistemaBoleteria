@@ -1,0 +1,31 @@
+# Django
+*.pyc
+*/*.pyc
+__pycache__/
+*.sqlite3
+*.db
+db.sqlite3
+
+# Environments
+env/
+venv/
+ENV/
+.env
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Static files (puedes comentar estas líneas si quieres subir static)
+/staticfiles/
+/media/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

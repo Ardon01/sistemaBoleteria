@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Compras{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-clock-history"></i> Historial de Compras</h1>
+    
+    {% if compras %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Boletos</th>
+                    <th>Total</th>
+                    <th>Método de Pago</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for compra in compras %}
+                <tr>
+                    <td>#{{ compra.id }}</td>
+                    <td>{{ compra.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>{{ compra.cantidad_boletos }}</td>
+                    <td>L. {{ compra.total }}</td>
+                    <td>{{ compra.metodo_pago }}</td>
+                    <td>
+                        <span class="badge bg-{% if compra.estado == 'completado' %}success{% else %}warning{% endif %}">
+                            {{ compra.estado }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'pagos:confirmacion' compra.id %}" class="btn btn-sm btn-primary">Ver Detalles</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No tienes compras registradas. 
+        <a href="{% url 'eventos:lista' %}" class="alert-link">Explora eventos disponibles</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

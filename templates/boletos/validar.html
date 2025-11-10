@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Validar Boleto{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-warning">
+                    <h3 class="mb-0"><i class="bi bi-qr-code-scan"></i> Validar Boleto</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="codigo_qr" class="form-label">Código QR</label>
+                            <input type="text" class="form-control" id="codigo_qr" name="codigo_qr" placeholder="Escanea o ingresa el código" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100">Validar</button>
+                    </form>
+                    <hr>
+                    <div class="text-center">
+                        <p class="text-muted">Escanea el código QR del boleto para validar su acceso al evento.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

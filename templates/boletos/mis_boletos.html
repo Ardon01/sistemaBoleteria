@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Mis Boletos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4"><i class="bi bi-ticket-perforated-fill"></i> Mis Boletos</h1>
+    
+    {% if boletos %}
+    <div class="row">
+        {% for boleto in boletos %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h5 class="card-title">{{ boleto.evento_nombre }}</h5>
+                    <ul class="list-unstyled">
+                        <li><strong>Categoría:</strong> {{ boleto.categoria }}</li>
+                        <li><strong>Fecha:</strong> {{ boleto.evento_fecha|date:"d/m/Y H:i" }}</li>
+                        <li><strong>Lugar:</strong> {{ boleto.evento_lugar }}</li>
+                        <li><strong>Precio:</strong> L. {{ boleto.precio }}</li>
+                        <li><strong>Estado:</strong> 
+                            <span class="badge {% if boleto.estado == 'vendido' %}bg-success{% elif boleto.estado == 'usado' %}bg-secondary{% else %}bg-warning{% endif %}">
+                                {{ boleto.estado }}
+                            </span>
+                        </li>
+                    </ul>
+                    {% if boleto.codigo_qr %}
+                    <div class="text-center mt-3">
+                        <img src="/media/qr_codes/{{ boleto.codigo_qr }}.png" alt="QR Code" class="img-fluid" style="max-width: 200px;">
+                        <p class="small text-muted mt-2">{{ boleto.codigo_qr }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No tienes boletos comprados. 
+        <a href="{% url 'eventos:lista' %}" class="alert-link">Explora eventos disponibles</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
