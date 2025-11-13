@@ -1,6 +1,4 @@
-"""
-URLs para el módulo de pagos
-"""
+
 from django.urls import path
 from . import views
 

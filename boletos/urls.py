@@ -1,6 +1,3 @@
-"""
-URLs para el módulo de boletos
-"""
 from django.urls import path
 from . import views
 

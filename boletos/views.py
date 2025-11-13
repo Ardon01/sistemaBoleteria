@@ -1,6 +1,3 @@
-"""
-Vistas para el módulo de boletos
-"""
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection
@@ -8,14 +5,10 @@ import datetime
 
 
 def comprar_boleto(request, evento_id):
-    """
-    Vista para comprar boletos de un evento
-    """
+
     if 'usuario_id' not in request.session:
         messages.error(request, 'Debes iniciar sesión para comprar boletos')
         return redirect('usuarios:login')
-    
-    # Obtener información del evento y categorías
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT e.id_evento, e.nombre, e.descripcion, e.fecha_inicio, e.lugar
@@ -36,7 +29,6 @@ def comprar_boleto(request, evento_id):
             'lugar': evento_row[4],
         }
         
-        # Obtener categorías disponibles
         cursor.execute("""
             SELECT ce.id_categoria, ce.nombre_categoria, ce.precio, ce.cantidad_asientos
             FROM Categorias_Evento ce
@@ -129,7 +121,7 @@ def validar_boleto(request):
             elif boleto_row[1] == 'usado':
                 messages.warning(request, 'Este boleto ya fue usado')
             elif boleto_row[1] == 'vendido':
-                # Marcar boleto como usado
+                
                 cursor.execute("""
                     UPDATE Boletos SET estado = 'usado' WHERE id_boleto = %s
                 """, [boleto_row[0]])

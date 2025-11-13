@@ -1,7 +1,3 @@
-"""
-Vistas para el módulo de eventos
-Todas las operaciones usan SQL puro sin ORM
-"""
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection
@@ -10,9 +6,7 @@ import datetime
 
 
 def lista_eventos(request):
-    """
-    Vista para listar todos los eventos activos
-    """
+   
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT e.id_evento, e.nombre, e.descripcion, e.fecha_inicio, 
@@ -40,11 +34,9 @@ def lista_eventos(request):
 
 
 def detalle_evento(request, evento_id):
-    """
-    Vista para ver el detalle de un evento específico
-    """
+ 
     with connection.cursor() as cursor:
-        # Obtener información del evento
+        
         cursor.execute("""
             SELECT e.id_evento, e.nombre, e.descripcion, e.fecha_inicio, 
                    e.fecha_fin, e.lugar, e.tipo_evento, e.creado_en, 
@@ -72,7 +64,6 @@ def detalle_evento(request, evento_id):
             'vendedor': evento_row[9],
         }
         
-        # Obtener categorías disponibles para este evento
         cursor.execute("""
             SELECT ce.id_categoria, ce.nombre_categoria, ce.precio, ce.cantidad_asientos
             FROM Categorias_Evento ce
@@ -81,7 +72,7 @@ def detalle_evento(request, evento_id):
         
         categorias = []
         for row in cursor.fetchall():
-            # Contar boletos vendidos por categoría
+
             cursor.execute("""
                 SELECT COUNT(*) FROM Boletos 
                 WHERE id_evento = %s AND estado = 'vendido'
@@ -107,9 +98,7 @@ def detalle_evento(request, evento_id):
 
 
 def crear_evento(request):
-    """
-    Vista para crear un nuevo evento (solo vendedores)
-    """
+
     if 'usuario_id' not in request.session:
         messages.error(request, 'Debes iniciar sesión')
         return redirect('usuarios:login')
@@ -128,7 +117,7 @@ def crear_evento(request):
         
         try:
             with connection.cursor() as cursor:
-                # Obtener ID del vendedor
+              
                 cursor.execute("""
                     SELECT id_usuario FROM Vendedores WHERE id_usuario = %s
                 """, [request.session['usuario_id']])
@@ -136,7 +125,6 @@ def crear_evento(request):
                 vendedor = cursor.fetchone()
                 vendedor_id = vendedor[0] if vendedor else request.session['usuario_id']
                 
-                # Insertar evento
                 cursor.execute("""
                     INSERT INTO Eventos (nombre, descripcion, fecha_inicio, fecha_fin, 
                                        lugar, id_vendedor, tipo_evento, creado_en, estado)
@@ -184,7 +172,6 @@ def editar_evento(request, evento_id):
         except Exception as e:
             messages.error(request, f'Error al actualizar evento: {str(e)}')
     
-    # Obtener datos del evento
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT id_evento, nombre, descripcion, fecha_inicio, fecha_fin, 

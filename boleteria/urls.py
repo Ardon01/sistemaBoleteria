@@ -1,6 +1,4 @@
-"""
-URLs principales del proyecto Sistema de Boletería de Eventos
-"""
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings

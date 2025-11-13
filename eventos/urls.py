@@ -1,6 +1,4 @@
-"""
-URLs para el módulo de eventos
-"""
+
 from django.urls import path
 from . import views
 

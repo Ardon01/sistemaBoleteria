@@ -1,7 +1,4 @@
-"""
-Vistas para el módulo de usuarios y autenticación
-Todas las operaciones usan SQL puro sin ORM
-"""
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection
@@ -11,61 +8,86 @@ import datetime
 
 
 def registro(request):
-    """
-    Vista para registro de nuevos usuarios
-    """
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        apellido = request.POST.get('apellido')
-        correo = request.POST.get('correo')
-        contrasena = request.POST.get('contrasena')
-        telefono = request.POST.get('telefono', '')
-        direccion = request.POST.get('direccion', '')
-        tipo_usuario = request.POST.get('tipo_usuario', 'cliente')
+
+        dni_usuario = request.POST.get('dni_usuario', '').strip()
+        primer_nombre = request.POST.get('primer_nombre', '').strip()
+        segundo_nombre = request.POST.get('segundo_nombre', '').strip()
+        primer_apellido = request.POST.get('primer_apellido', '').strip()
+        segundo_apellido = request.POST.get('segundo_apellido', '').strip()
+        correo = request.POST.get('correo', '').strip()
+        contrasena = request.POST.get('contrasena', '')
+        telefono = request.POST.get('telefono', '').strip()
+        direccion = request.POST.get('direccion', '').strip()
+        fecha_registro = datetime.datetime.now()
         
-        # Validar que el correo no exista
+        if not dni_usuario:
+            messages.error(request, 'El DNI/Cédula es obligatorio')
+            return render(request, 'usuarios/registro.html')
+        
+        if not dni_usuario.isdigit():
+            messages.error(request, 'El DNI/Cédula debe contener solo números')
+            return render(request, 'usuarios/registro.html')
+            
+        if not primer_nombre or not primer_apellido or not correo or not contrasena:
+            messages.error(request, 'Todos los campos marcados con * son obligatorios')
+            return render(request, 'usuarios/registro.html')
+
         with connection.cursor() as cursor:
-            cursor.execute("SELECT id_usuario FROM Usuarios WHERE correo = %s", [correo])
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE dni_usuario = %s", [dni_usuario])
+            if cursor.fetchone():
+                messages.error(request, 'El DNI/Cédula ya está registrado')
+                return render(request, 'usuarios/registro.html')
+            
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE correo = %s", [correo])
             if cursor.fetchone():
                 messages.error(request, 'El correo ya está registrado')
                 return render(request, 'usuarios/registro.html')
         
         try:
             with connection.cursor() as cursor:
-                # Insertar en tabla Usuarios
                 cursor.execute("""
-                    INSERT INTO Usuarios (nombre, primer_nombre, segundo_nombre, correo, contrasena, 
-                                        telefono, direccion, fecha_registro, estado)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, [nombre, apellido, '', correo, make_password(contrasena), 
-                      telefono, direccion, datetime.datetime.now(), 'activo'])
+                    INSERT INTO usuarios (
+                        dni_usuario, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido,
+                        correo, contrasena, telefono, direccion, fecha_registro, estado
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, [
+                    dni_usuario,
+                    primer_nombre, 
+                    segundo_nombre, 
+                    primer_apellido, 
+                    segundo_apellido,
+                    correo, 
+                    make_password(contrasena), 
+                    telefono, 
+                    direccion, 
+                    datetime.datetime.now(), 
+                    'activo'
+                ])
                 
-                # Obtener el ID del usuario recién creado
-                cursor.execute("SELECT LAST_INSERT_ID()")
-                usuario_id = cursor.fetchone()[0]
+                usuario_id = cursor.lastrowid
                 
-                # Obtener ID del rol por defecto (cliente = 1)
-                cursor.execute("SELECT id_rol FROM Roles WHERE nombre_rol = %s", [tipo_usuario])
+                cursor.execute("SELECT id_rol FROM roles WHERE nombre_rol = 'cliente'")
                 rol_result = cursor.fetchone()
-                rol_id = rol_result[0] if rol_result else 1
                 
-                # Asignar rol al usuario
+                if rol_result:
+                    rol_id = rol_result[0]
+                else:
+                    cursor.execute("INSERT INTO roles (nombre_rol) VALUES ('cliente')")
+                    rol_id = cursor.lastrowid
+
                 cursor.execute("""
-                    INSERT INTO Usuarios_Roles (id_usuario, id_rol)
+                    INSERT INTO usuarios_roles (id_usuario, id_rol)
                     VALUES (%s, %s)
                 """, [usuario_id, rol_id])
                 
-                # Crear registro en tabla Clientes
-                if tipo_usuario == 'cliente':
-                    cursor.execute("""
-                        INSERT INTO Clientes (id_usuario, primer_nombre, segundo_nombre, 
-                                            primer_apellido, segundo_apellido, correo, 
-                                            telefono, direccion)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """, [usuario_id, nombre, '', apellido, '', correo, telefono, direccion])
+                cursor.execute("""
+                    INSERT INTO clientes (id_usuario, fecha_registro, estado)
+                    VALUES (%s, %s, %s)
+                """, [usuario_id, datetime.datetime.now(), 'activo'])
                 
-            messages.success(request, 'Registro exitoso. Ahora puedes iniciar sesión')
-            return redirect('usuarios:login')
+                messages.success(request, 'Registro exitoso. Ahora puedes iniciar sesión')
+                return redirect('usuarios:login')
             
         except Exception as e:
             messages.error(request, f'Error al registrar usuario: {str(e)}')
@@ -73,23 +95,19 @@ def registro(request):
     
     return render(request, 'usuarios/registro.html')
 
-
 def login_view(request):
-    """
-    Vista para inicio de sesión
-    """
     if request.method == 'POST':
         correo = request.POST.get('correo')
         contrasena = request.POST.get('contrasena')
         
         with connection.cursor() as cursor:
-            # Buscar usuario por correo
             cursor.execute("""
-                SELECT u.id_usuario, u.correo, u.contrasena, u.nombre, u.estado,
-                       r.nombre_rol
-                FROM Usuarios u
-                LEFT JOIN Usuarios_Roles ur ON u.id_usuario = ur.id_usuario
-                LEFT JOIN Roles r ON ur.id_rol = r.id_rol
+                SELECT u.id_usuario, u.correo, u.contrasena, 
+                       CONCAT(u.primer_nombre, ' ', u.primer_apellido) as nombre_completo,
+                       u.estado, r.nombre_rol
+                FROM usuarios u
+                LEFT JOIN usuarios_roles ur ON u.id_usuario = ur.id_usuario
+                LEFT JOIN roles r ON ur.id_rol = r.id_rol
                 WHERE u.correo = %s
             """, [correo])
             
@@ -100,10 +118,9 @@ def login_view(request):
                     messages.error(request, 'Tu cuenta está inactiva')
                     return render(request, 'usuarios/login.html')
                 
-                # Guardar datos en sesión
                 request.session['usuario_id'] = usuario[0]
                 request.session['usuario_correo'] = usuario[1]
-                request.session['usuario_nombre'] = usuario[3]
+                request.session['usuario_nombre'] = usuario[3]  
                 request.session['usuario_rol'] = usuario[5] or 'cliente'
                 
                 messages.success(request, f'Bienvenido {usuario[3]}')
@@ -115,9 +132,6 @@ def login_view(request):
 
 
 def logout_view(request):
-    """
-    Vista para cerrar sesión
-    """
     request.session.flush()
     messages.success(request, 'Has cerrado sesión correctamente')
     return redirect('usuarios:login')
@@ -133,31 +147,36 @@ def perfil(request):
     usuario_id = request.session['usuario_id']
     
     if request.method == 'POST':
-        # Actualizar datos del usuario
-        nombre = request.POST.get('nombre')
+        primer_nombre = request.POST.get('primer_nombre')
+        segundo_nombre = request.POST.get('segundo_nombre', '')
+        primer_apellido = request.POST.get('primer_apellido')
+        segundo_apellido = request.POST.get('segundo_apellido', '')
         telefono = request.POST.get('telefono')
         direccion = request.POST.get('direccion')
         
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    UPDATE Usuarios 
-                    SET nombre = %s, telefono = %s, direccion = %s
+                    UPDATE usuarios 
+                    SET primer_nombre = %s, segundo_nombre = %s, 
+                        primer_apellido = %s, segundo_apellido = %s,
+                        telefono = %s, direccion = %s
                     WHERE id_usuario = %s
-                """, [nombre, telefono, direccion, usuario_id])
+                """, [primer_nombre, segundo_nombre, primer_apellido, 
+                      segundo_apellido, telefono, direccion, usuario_id])
                 
             messages.success(request, 'Perfil actualizado correctamente')
         except Exception as e:
             messages.error(request, f'Error al actualizar perfil: {str(e)}')
     
-    # Obtener datos del usuario
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT u.id_usuario, u.nombre, u.primer_nombre, u.correo, 
+            SELECT u.id_usuario, u.primer_nombre, u.segundo_nombre, 
+                   u.primer_apellido, u.segundo_apellido, u.correo, 
                    u.telefono, u.direccion, u.fecha_registro, r.nombre_rol
-            FROM Usuarios u
-            LEFT JOIN Usuarios_Roles ur ON u.id_usuario = ur.id_usuario
-            LEFT JOIN Roles r ON ur.id_rol = r.id_rol
+            FROM usuarios u
+            LEFT JOIN usuarios_roles ur ON u.id_usuario = ur.id_usuario
+            LEFT JOIN roles r ON ur.id_rol = r.id_rol
             WHERE u.id_usuario = %s
         """, [usuario_id])
         
@@ -166,13 +185,15 @@ def perfil(request):
     context = {
         'usuario': {
             'id': usuario[0],
-            'nombre': usuario[1],
-            'apellido': usuario[2],
-            'correo': usuario[3],
-            'telefono': usuario[4],
-            'direccion': usuario[5],
-            'fecha_registro': usuario[6],
-            'rol': usuario[7],
+            'primer_nombre': usuario[1],
+            'segundo_nombre': usuario[2],
+            'primer_apellido': usuario[3],
+            'segundo_apellido': usuario[4],
+            'correo': usuario[5],
+            'telefono': usuario[6],
+            'direccion': usuario[7],
+            'fecha_registro': usuario[8],
+            'rol': usuario[9],
         }
     }
     

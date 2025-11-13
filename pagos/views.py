@@ -1,6 +1,4 @@
-"""
-Vistas para el módulo de pagos
-"""
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection
@@ -13,9 +11,7 @@ import string
 
 
 def generar_codigo_qr(boleto_id):
-    """
-    Genera un código QR único para un boleto
-    """
+
     codigo = f"BOLETO-{boleto_id}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
     
     # Crear directorio si no existe
@@ -35,9 +31,7 @@ def generar_codigo_qr(boleto_id):
 
 
 def procesar_pago(request, evento_id, categoria_id, cantidad):
-    """
-    Vista para procesar el pago de boletos (simulado)
-    """
+
     if 'usuario_id' not in request.session:
         return redirect('usuarios:login')
     

@@ -11,38 +11,77 @@
                     <h2 class="text-center mb-4">
                         <i class="bi bi-person-plus"></i> Crear Cuenta
                     </h2>
+                    
+                    {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <form method="post">
                         {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="dni_usuario" class="form-label">DNI/Cédula *</label>
+                            <input type="text" class="form-control" id="dni_usuario" name="dni_usuario" 
+                                   maxlength="13" required pattern="[0-9]+" title="Solo números">
+                            <div class="form-text">Ingrese solo números</div>
+                        </div>
+                        
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="nombre" class="form-label">Nombre</label>
-                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                                <label for="primer_nombre" class="form-label">Primer Nombre *</label>
+                                <input type="text" class="form-control" id="primer_nombre" name="primer_nombre" required>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="apellido" class="form-label">Apellido</label>
-                                <input type="text" class="form-control" id="apellido" name="apellido" required>
+                                <label for="segundo_nombre" class="form-label">Segundo Nombre</label>
+                                <input type="text" class="form-control" id="segundo_nombre" name="segundo_nombre">
                             </div>
                         </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="primer_apellido" class="form-label">Primer Apellido *</label>
+                                <input type="text" class="form-control" id="primer_apellido" name="primer_apellido" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="segundo_apellido" class="form-label">Segundo Apellido</label>
+                                <input type="text" class="form-control" id="segundo_apellido" name="segundo_apellido">
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label for="correo" class="form-label">Correo Electrónico</label>
+                            <label for="correo" class="form-label">Correo Electrónico *</label>
                             <input type="email" class="form-control" id="correo" name="correo" required>
                         </div>
+                        
                         <div class="mb-3">
-                            <label for="contrasena" class="form-label">Contraseña</label>
-                            <input type="password" class="form-control" id="contrasena" name="contrasena" required>
+                            <label for="contrasena" class="form-label">Contraseña *</label>
+                            <input type="password" class="form-control" id="contrasena" name="contrasena" required minlength="6">
                         </div>
+                        
                         <div class="mb-3">
                             <label for="telefono" class="form-label">Teléfono</label>
                             <input type="tel" class="form-control" id="telefono" name="telefono">
                         </div>
+                        
                         <div class="mb-3">
                             <label for="direccion" class="form-label">Dirección</label>
                             <textarea class="form-control" id="direccion" name="direccion" rows="2"></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Registrarse</button>
+                        
+                        <button type="submit" class="btn btn-primary w-100 py-2">
+                            <i class="bi bi-person-plus me-2"></i>Registrarse
+                        </button>
                     </form>
+                    
                     <div class="text-center mt-3">
-                        <p>¿Ya tienes cuenta? <a href="{% url 'usuarios:login' %}">Inicia sesión aquí</a></p>
+                        <p>¿Ya tienes cuenta? <a href="{% url 'usuarios:login' %}" class="text-decoration-none">Inicia sesión aquí</a></p>
                     </div>
                 </div>
             </div>
