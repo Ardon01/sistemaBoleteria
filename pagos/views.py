@@ -77,24 +77,69 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
     
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago', 'tarjeta')
+        # soportar códigos cortos enviados desde la plantilla
+        short_map = {
+            'tarj': 'tarjeta',
+            'efec': 'efectivo',
+            'trans': 'transferencia'
+        }
+        metodo_pago = short_map.get(metodo_pago, metodo_pago)
         
         try:
             with transaction.atomic():
                 with connection.cursor() as cursor:
+                    # Intentar mapear el valor de metodo_pago a opciones ENUM en la base de datos
+                    def get_enum_options(table, column):
+                        cursor.execute("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s", [table, column])
+                        r = cursor.fetchone()
+                        if not r:
+                            return None
+                        typ = r[0]
+                        if typ.startswith('enum('):
+                            # parse enum('a','b',...)
+                            opts = typ[5:-1]
+                            # split but keeping inner commas — remove surrounding quotes
+                            parts = [p.strip("'\"") for p in opts.split(',')]
+                            return parts
+                        return None
+
+                    compras_enum = get_enum_options('Compras', 'metodo_pago')
+                    pagos_enum = get_enum_options('Pagos', 'metodo')
+
+                    def map_to_enum(value, enum_opts):
+                        if not enum_opts:
+                            return value
+                        # exact match
+                        if value in enum_opts:
+                            return value
+                        # try case-insensitive match
+                        for opt in enum_opts:
+                            if opt.lower() == value.lower():
+                                return opt
+                        # try startswith
+                        for opt in enum_opts:
+                            if value.lower().startswith(opt.lower()) or opt.lower().startswith(value.lower()):
+                                return opt
+                        # fallback to first option
+                        return enum_opts[0]
+
+                    metodo_pago_db = map_to_enum(metodo_pago, compras_enum)
                     # Crear compra
                     cursor.execute("""
                         INSERT INTO Compras (id_cliente, fecha_compra, total, metodo_pago, estado)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, [usuario_id, datetime.datetime.now(), total, metodo_pago, 'pendiente'])
+                    """, [usuario_id, datetime.datetime.now(), total, metodo_pago_db, 'pendiente'])
 
                     cursor.execute("SELECT LAST_INSERT_ID()")
                     compra_id = cursor.fetchone()[0]
 
                     # Crear registro de pago
+                    # mapear metodo para la tabla Pagos si es necesario
+                    metodo_pago_pago_db = map_to_enum(metodo_pago, pagos_enum)
                     cursor.execute("""
                         INSERT INTO Pagos (id_compra, fecha_pago, monto, metodo, estado)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, [compra_id, datetime.datetime.now(), total, metodo_pago, 'exitoso'])
+                    """, [compra_id, datetime.datetime.now(), total, metodo_pago_pago_db, 'exitoso'])
 
                     # Re-verificar disponibilidad dentro de la transacción
                     cursor.execute("""
@@ -116,10 +161,11 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
 
                     # Crear boletos y detalle de compra
                     for i in range(cantidad):
+                        # Asegurarse de insertar un valor en 'codigo' (campo NO NULL en la BD)
                         cursor.execute("""
-                            INSERT INTO Boletos (id_evento, id_categoria, precio, estado, id_cliente)
-                            VALUES (%s, %s, %s, %s, %s)
-                        """, [evento_id, categoria_id, precio_unitario, 'pagado', usuario_id])
+                            INSERT INTO Boletos (id_evento, id_categoria, precio, estado, id_cliente, codigo)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, [evento_id, categoria_id, precio_unitario, 'pagado', usuario_id, ''])
 
                         cursor.execute("SELECT LAST_INSERT_ID()")
                         boleto_id = cursor.fetchone()[0]
@@ -249,10 +295,34 @@ def procesar_pago_sin_categoria(request, evento_id, cantidad):
 
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago', 'tarjeta')
-        
+        # soportar códigos cortos enviados desde la plantilla
+        short_map = {
+            'tarj': 'tarjeta',
+            'efec': 'efectivo',
+            'trans': 'transferencia'
+        }
+        metodo_pago = short_map.get(metodo_pago, metodo_pago)
+
         try:
             with transaction.atomic():
                 with connection.cursor() as cursor:
+                    # Asegurar que exista una categoría 'General' para este evento (get-or-create)
+                    cursor.execute("""
+                        SELECT id_categoria FROM Categorias_Evento
+                        WHERE id_evento = %s AND nombre_categoria = %s
+                        LIMIT 1
+                    """, [evento_id, 'General'])
+                    row = cursor.fetchone()
+                    if row:
+                        general_id = row[0]
+                    else:
+                        cursor.execute("""
+                            INSERT INTO Categorias_Evento (id_evento, nombre_categoria, precio, cantidad_asientos)
+                            VALUES (%s, %s, %s, %s)
+                        """, [evento_id, 'General', precio_unitario, None])
+                        cursor.execute("SELECT LAST_INSERT_ID()")
+                        general_id = cursor.fetchone()[0]
+
                     # Crear compra
                     cursor.execute("""
                         INSERT INTO Compras (id_cliente, fecha_compra, total, metodo_pago, estado)
@@ -268,12 +338,12 @@ def procesar_pago_sin_categoria(request, evento_id, cantidad):
                         VALUES (%s, %s, %s, %s, %s)
                     """, [compra_id, datetime.datetime.now(), total, metodo_pago, 'exitoso'])
 
-                    # Crear boletos sin categoría
+                    # Crear boletos usando la categoria general
                     for i in range(cantidad):
                         cursor.execute("""
-                            INSERT INTO Boletos (id_evento, id_categoria, precio, estado, id_cliente)
-                            VALUES (%s, %s, %s, %s, %s)
-                        """, [evento_id, None, precio_unitario, 'pagado', usuario_id])
+                            INSERT INTO Boletos (id_evento, id_categoria, precio, estado, id_cliente, codigo)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, [evento_id, general_id, precio_unitario, 'pagado', usuario_id, ''])
 
                         cursor.execute("SELECT LAST_INSERT_ID()")
                         boleto_id = cursor.fetchone()[0]
