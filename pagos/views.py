@@ -63,44 +63,45 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
             with connection.cursor() as cursor:
                 # Crear compra
                 cursor.execute("""
-                    INSERT INTO Compras (id_cliente, fecha_compra, total_DECIMAL)
-                    VALUES (%s, %s, %s)
-                """, [usuario_id, datetime.datetime.now(), total])
-                
+                    INSERT INTO Compras (id_cliente, fecha_compra, total, metodo_pago, estado)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, [usuario_id, datetime.datetime.now(), total, metodo_pago, 'pendiente'])
+
                 cursor.execute("SELECT LAST_INSERT_ID()")
                 compra_id = cursor.fetchone()[0]
-                
+
                 # Crear registro de pago
                 cursor.execute("""
-                    INSERT INTO Pagos (id_compra, fecha_pago, metodo_pago_ENUM, estado_ENUM)
-                    VALUES (%s, %s, %s, %s)
-                """, [compra_id, datetime.datetime.now(), metodo_pago, 'completado'])
-                
-                # Crear boletos
+                    INSERT INTO Pagos (id_compra, fecha_pago, monto, metodo, estado)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, [compra_id, datetime.datetime.now(), total, metodo_pago, 'exitoso'])
+
+                # Crear boletos y detalle de compra
                 for i in range(cantidad):
                     cursor.execute("""
-                        INSERT INTO Boletos (id_evento, id_categoria, precio_DECIMAL, 
-                                           fecha_compra, estado)
+                        INSERT INTO Boletos (id_evento, id_categoria, precio, estado, id_cliente)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, [evento_id, categoria_id, precio_unitario, 
-                          datetime.datetime.now(), 'vendido'])
-                    
+                    """, [evento_id, categoria_id, precio_unitario, 'pagado', usuario_id])
+
                     cursor.execute("SELECT LAST_INSERT_ID()")
                     boleto_id = cursor.fetchone()[0]
-                    
-                    # Generar código QR
+
+                    # Generar código QR y actualizar el boleto
                     codigo_qr = generar_codigo_qr(boleto_id)
-                    
-                    # Actualizar boleto con código QR
                     cursor.execute("""
-                        UPDATE Boletos SET codigo_qr = %s WHERE id_boleto = %s
+                        UPDATE Boletos SET codigo = %s WHERE id_boleto = %s
                     """, [codigo_qr, boleto_id])
-                    
-                    # Crear detalle de compra
+
+                    # Crear detalle de compra (precio unitario)
                     cursor.execute("""
-                        INSERT INTO Detalle_Compras (id_compra, id_boleto, cantidad_boletos_INT)
+                        INSERT INTO Detalle_Compras (id_compra, id_boleto, precio)
                         VALUES (%s, %s, %s)
-                    """, [compra_id, boleto_id, 1])
+                    """, [compra_id, boleto_id, precio_unitario])
+
+                # Marcar compra como completada
+                cursor.execute("""
+                    UPDATE Compras SET estado = 'completado' WHERE id_compra = %s
+                """, [compra_id])
             
             messages.success(request, 'Pago procesado correctamente')
             return redirect('pagos:confirmacion', compra_id=compra_id)
@@ -129,8 +130,8 @@ def confirmacion_pago(request, compra_id):
     with connection.cursor() as cursor:
         # Obtener información de la compra
         cursor.execute("""
-            SELECT c.id_compra, c.fecha_compra, c.total_DECIMAL,
-                   p.metodo_pago_ENUM, p.estado_ENUM
+            SELECT c.id_compra, c.fecha_compra, c.total,
+                   p.metodo, p.estado
             FROM Compras c
             INNER JOIN Pagos p ON c.id_compra = p.id_compra
             WHERE c.id_compra = %s
@@ -151,8 +152,8 @@ def confirmacion_pago(request, compra_id):
         
         # Obtener boletos de la compra
         cursor.execute("""
-            SELECT b.id_boleto, b.codigo_qr, e.nombre as evento_nombre,
-                   ce.nombre_categoria, b.precio_DECIMAL
+             SELECT b.id_boleto, b.codigo, e.nombre as evento_nombre,
+                 ce.nombre_categoria, b.precio
             FROM Boletos b
             INNER JOIN Detalle_Compras dc ON b.id_boleto = dc.id_boleto
             INNER JOIN Eventos e ON b.id_evento = e.id_evento

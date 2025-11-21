@@ -72,14 +72,15 @@ def detalle_evento(request, evento_id):
         
         categorias = []
         for row in cursor.fetchall():
-
+            # Contar boletos vendidos/pagados por categoría
             cursor.execute("""
-                SELECT COUNT(*) FROM Boletos 
-                WHERE id_evento = %s AND estado = 'vendido'
-            """, [evento_id])
-            
+                SELECT COUNT(*) FROM Boletos
+                WHERE id_evento = %s AND id_categoria = %s AND estado IN ('pagado','validado')
+            """, [evento_id, row[0]])
+
             vendidos = cursor.fetchone()[0]
-            disponibles = row[3] - vendidos
+            cantidad_asientos = row[3] or 0
+            disponibles = cantidad_asientos - vendidos if cantidad_asientos else None
             
             categorias.append({
                 'id': row[0],
@@ -117,14 +118,19 @@ def crear_evento(request):
         
         try:
             with connection.cursor() as cursor:
-              
+                # Asegurar que exista una fila en Vendedores para el usuario actual
                 cursor.execute("""
                     SELECT id_usuario FROM Vendedores WHERE id_usuario = %s
                 """, [request.session['usuario_id']])
-                
                 vendedor = cursor.fetchone()
-                vendedor_id = vendedor[0] if vendedor else request.session['usuario_id']
-                
+                if not vendedor:
+                    # Insertar una fila mínima en Vendedores para respetar la FK
+                    cursor.execute("""
+                        INSERT INTO Vendedores (id_usuario) VALUES (%s)
+                    """, [request.session['usuario_id']])
+
+                vendedor_id = request.session['usuario_id']
+
                 cursor.execute("""
                     INSERT INTO Eventos (nombre, descripcion, fecha_inicio, fecha_fin, 
                                        lugar, id_vendedor, tipo_evento, creado_en, estado)

@@ -17,8 +17,8 @@ def historial_compras(request):
     
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT c.id_compra, c.fecha_compra, c.total_DECIMAL,
-                   p.metodo_pago_ENUM, p.estado_ENUM,
+            SELECT c.id_compra, c.fecha_compra, c.total,
+                   p.metodo, p.estado,
                    COUNT(dc.id_boleto) as cantidad_boletos
             FROM Compras c
             INNER JOIN Pagos p ON c.id_compra = p.id_compra
@@ -57,10 +57,9 @@ def reporte_ventas(request):
         # Reporte de ventas por evento
         cursor.execute("""
             SELECT e.nombre, COUNT(b.id_boleto) as boletos_vendidos,
-                   SUM(b.precio_DECIMAL) as total_ventas
+                   SUM(b.precio) as total_ventas
             FROM Eventos e
-            LEFT JOIN Boletos b ON e.id_evento = b.id_evento
-            WHERE b.estado = 'vendido'
+            LEFT JOIN Boletos b ON e.id_evento = b.id_evento AND b.estado = 'pagado'
             GROUP BY e.id_evento
             ORDER BY total_ventas DESC
         """)

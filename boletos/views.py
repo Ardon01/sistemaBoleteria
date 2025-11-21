@@ -69,22 +69,23 @@ def mis_boletos(request):
     
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT b.id_boleto, b.codigo_qr, b.fecha_compra, b.estado,
+            SELECT b.id_boleto, b.codigo, c.fecha_compra, b.estado,
                    e.nombre as evento_nombre, e.fecha_inicio, e.lugar,
                    ce.nombre_categoria, ce.precio
             FROM Boletos b
+            INNER JOIN Detalle_Compras dc ON b.id_boleto = dc.id_boleto
+            INNER JOIN Compras c ON dc.id_compra = c.id_compra
             INNER JOIN Eventos e ON b.id_evento = e.id_evento
             LEFT JOIN Categorias_Evento ce ON b.id_categoria = ce.id_categoria
-            INNER JOIN Compras c ON b.id_boleto = c.id_compra
             WHERE c.id_cliente = %s
-            ORDER BY b.fecha_compra DESC
+            ORDER BY c.fecha_compra DESC
         """, [usuario_id])
         
         boletos = []
         for row in cursor.fetchall():
             boletos.append({
                 'id': row[0],
-                'codigo_qr': row[1],
+                'codigo': row[1],
                 'fecha_compra': row[2],
                 'estado': row[3],
                 'evento_nombre': row[4],
@@ -111,7 +112,7 @@ def validar_boleto(request):
                 FROM Boletos b
                 INNER JOIN Eventos e ON b.id_evento = e.id_evento
                 LEFT JOIN Categorias_Evento ce ON b.id_categoria = ce.id_categoria
-                WHERE b.codigo_qr = %s
+                WHERE b.codigo = %s
             """, [codigo_qr])
             
             boleto_row = cursor.fetchone()
@@ -120,12 +121,10 @@ def validar_boleto(request):
                 messages.error(request, 'Boleto no encontrado')
             elif boleto_row[1] == 'usado':
                 messages.warning(request, 'Este boleto ya fue usado')
-            elif boleto_row[1] == 'vendido':
-                
+            elif boleto_row[1] in ('pagado', 'validado'):
                 cursor.execute("""
                     UPDATE Boletos SET estado = 'usado' WHERE id_boleto = %s
                 """, [boleto_row[0]])
-                
                 messages.success(request, f'Boleto válido: {boleto_row[2]} - {boleto_row[3]}')
             else:
                 messages.error(request, 'Boleto no válido')

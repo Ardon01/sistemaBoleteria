@@ -81,10 +81,10 @@ def registro(request):
                     VALUES (%s, %s)
                 """, [usuario_id, rol_id])
                 
+                # Insertar en Clientes (tabla solo guarda id_usuario según el esquema)
                 cursor.execute("""
-                    INSERT INTO clientes (id_usuario, fecha_registro, estado)
-                    VALUES (%s, %s, %s)
-                """, [usuario_id, datetime.datetime.now(), 'activo'])
+                    INSERT INTO Clientes (id_usuario) VALUES (%s)
+                """, [usuario_id])
                 
                 messages.success(request, 'Registro exitoso. Ahora puedes iniciar sesión')
                 return redirect('usuarios:login')
