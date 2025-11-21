@@ -72,7 +72,6 @@ def detalle_evento(request, evento_id):
         
         categorias = []
         for row in cursor.fetchall():
-            # Contar boletos vendidos/pagados por categoría
             cursor.execute("""
                 SELECT COUNT(*) FROM Boletos
                 WHERE id_evento = %s AND id_categoria = %s AND estado IN ('pagado','validado')
@@ -115,16 +114,15 @@ def crear_evento(request):
         fecha_fin = request.POST.get('fecha_fin')
         lugar = request.POST.get('lugar')
         tipo_evento = request.POST.get('tipo_evento')
+        precio_base = request.POST.get('precio')
         
         try:
             with connection.cursor() as cursor:
-                # Asegurar que exista una fila en Vendedores para el usuario actual
                 cursor.execute("""
                     SELECT id_usuario FROM Vendedores WHERE id_usuario = %s
                 """, [request.session['usuario_id']])
                 vendedor = cursor.fetchone()
                 if not vendedor:
-                    # Insertar una fila mínima en Vendedores para respetar la FK
                     cursor.execute("""
                         INSERT INTO Vendedores (id_usuario) VALUES (%s)
                     """, [request.session['usuario_id']])
@@ -137,6 +135,24 @@ def crear_evento(request):
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, [nombre, descripcion, fecha_inicio, fecha_fin, lugar, 
                       vendedor_id, tipo_evento, datetime.datetime.now(), 'activo'])
+
+                # Si el vendedor proporcionó un precio base, crear una categoría 'General' con ese precio
+                if precio_base:
+                    try:
+                        cursor.execute("SELECT LAST_INSERT_ID()"); compra_row = None
+                    except Exception:
+                        compra_row = None
+                    # obtener id_evento recién creado
+                    cursor.execute("SELECT LAST_INSERT_ID()")
+                    evento_id_nuevo = cursor.fetchone()[0]
+                    try:
+                        precio_val = float(precio_base)
+                    except Exception:
+                        precio_val = 0
+                    cursor.execute("""
+                        INSERT INTO Categorias_Evento (id_evento, nombre_categoria, precio, cantidad_asientos)
+                        VALUES (%s, %s, %s, %s)
+                    """, [evento_id_nuevo, 'General', precio_val, None])
                 
             messages.success(request, 'Evento creado correctamente')
             return redirect('eventos:lista')

@@ -14,11 +14,11 @@ def generar_codigo_qr(boleto_id):
 
     codigo = f"BOLETO-{boleto_id}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
     
-    # Crear directorio si no existe
+    
     qr_dir = os.path.join(settings.MEDIA_ROOT, 'qr_codes')
     os.makedirs(qr_dir, exist_ok=True)
     
-    # Generar QR
+    
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
     qr.add_data(codigo)
     qr.make(fit=True)
@@ -42,7 +42,8 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
         messages.error(request, 'Cantidad inválida')
         return redirect('eventos:detalle', evento_id=evento_id)
 
-    # Obtener información del evento y categoría y verificar disponibilidad
+    
+    
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT e.nombre, ce.nombre_categoria, ce.precio, ce.cantidad_asientos
@@ -61,7 +62,8 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
         precio_unitario = info[2]
         cantidad_asientos = info[3] or 0
 
-        # contar vendidos
+        
+        
         cursor.execute("""
             SELECT COUNT(*) FROM Boletos
             WHERE id_evento = %s AND id_categoria = %s AND estado IN ('pagado','validado')
@@ -77,7 +79,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
     
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago', 'tarjeta')
-        # soportar códigos cortos enviados desde la plantilla
+                    
         short_map = {
             'tarj': 'tarjeta',
             'efec': 'efectivo',
@@ -88,7 +90,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
         try:
             with transaction.atomic():
                 with connection.cursor() as cursor:
-                    # Intentar mapear el valor de metodo_pago a opciones ENUM en la base de datos
+                    
                     def get_enum_options(table, column):
                         cursor.execute("SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s", [table, column])
                         r = cursor.fetchone()
@@ -96,7 +98,6 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                             return None
                         typ = r[0]
                         if typ.startswith('enum('):
-                            # parse enum('a','b',...)
                             opts = typ[5:-1]
                             # split but keeping inner commas — remove surrounding quotes
                             parts = [p.strip("'\"") for p in opts.split(',')]
@@ -109,6 +110,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                     def map_to_enum(value, enum_opts):
                         if not enum_opts:
                             return value
+                        
                         # exact match
                         if value in enum_opts:
                             return value
@@ -124,6 +126,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                         return enum_opts[0]
 
                     metodo_pago_db = map_to_enum(metodo_pago, compras_enum)
+                    
                     # Crear compra
                     cursor.execute("""
                         INSERT INTO Compras (id_cliente, fecha_compra, total, metodo_pago, estado)
@@ -134,6 +137,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                     compra_id = cursor.fetchone()[0]
 
                     # Crear registro de pago
+                    
                     # mapear metodo para la tabla Pagos si es necesario
                     metodo_pago_pago_db = map_to_enum(metodo_pago, pagos_enum)
                     cursor.execute("""
@@ -141,6 +145,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                         VALUES (%s, %s, %s, %s, %s)
                     """, [compra_id, datetime.datetime.now(), total, metodo_pago_pago_db, 'exitoso'])
 
+                    
                     # Re-verificar disponibilidad dentro de la transacción
                     cursor.execute("""
                         SELECT ce.cantidad_asientos
@@ -159,8 +164,10 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                     if disponibles_tx is not None and cantidad > disponibles_tx:
                         raise Exception(f'Solo hay {disponibles_tx} boletos disponibles en esta categoría')
 
+                    
                     # Crear boletos y detalle de compra
                     for i in range(cantidad):
+                        
                         # Asegurarse de insertar un valor en 'codigo' (campo NO NULL en la BD)
                         cursor.execute("""
                             INSERT INTO Boletos (id_evento, id_categoria, precio, estado, id_cliente, codigo)
@@ -170,6 +177,7 @@ def procesar_pago(request, evento_id, categoria_id, cantidad):
                         cursor.execute("SELECT LAST_INSERT_ID()")
                         boleto_id = cursor.fetchone()[0]
 
+                        
                         # Generar código QR y actualizar el boleto
                         codigo_qr = generar_codigo_qr(boleto_id)
                         cursor.execute("""

@@ -40,7 +40,6 @@ def comprar_boleto(request, evento_id):
             categoria_id = row[0]
             cantidad_asientos = row[3] or 0
 
-            # Contar boletos vendidos/pagados por categoría para calcular disponibles
             cursor.execute("""
                 SELECT COUNT(*) FROM Boletos
                 WHERE id_evento = %s AND id_categoria = %s AND estado IN ('pagado','validado')
@@ -57,7 +56,8 @@ def comprar_boleto(request, evento_id):
             })
     
     if request.method == 'POST':
-        # Si no existen categorías, permitimos comprar sin categoría
+        
+        
         categorias_existentes = categorias and len(categorias) > 0
         if categorias_existentes:
             categoria_id = request.POST.get('categoria')
@@ -70,7 +70,8 @@ def comprar_boleto(request, evento_id):
             messages.error(request, 'Cantidad inválida')
             return render(request, 'boletos/comprar.html', {'evento': evento, 'categorias': categorias})
 
-        # Si hay categorías, validar la selección y disponibilidad
+        
+        
         if categorias_existentes:
             selected = None
             for c in categorias:
@@ -88,7 +89,7 @@ def comprar_boleto(request, evento_id):
 
             return redirect('pagos:procesar', evento_id=evento_id, categoria_id=categoria_id, cantidad=cantidad)
 
-        # Si no hay categorías: redirigir a procesar sin categoría
+        
         return redirect('pagos:procesar_sin_categoria', evento_id=evento_id, cantidad=cantidad)
     
     context = {

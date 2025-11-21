@@ -81,7 +81,6 @@ def registro(request):
                     VALUES (%s, %s)
                 """, [usuario_id, rol_id])
                 
-                # Insertar en Clientes (tabla solo guarda id_usuario según el esquema)
                 cursor.execute("""
                     INSERT INTO Clientes (id_usuario) VALUES (%s)
                 """, [usuario_id])

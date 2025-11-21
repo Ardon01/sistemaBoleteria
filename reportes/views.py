@@ -54,7 +54,6 @@ def reporte_ventas(request):
         return redirect('eventos:lista')
     
     with connection.cursor() as cursor:
-        # Reporte de ventas por evento
         cursor.execute("""
             SELECT e.nombre, COUNT(b.id_boleto) as boletos_vendidos,
                    SUM(b.precio) as total_ventas
