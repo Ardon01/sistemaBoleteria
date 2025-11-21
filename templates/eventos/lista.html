@@ -29,9 +29,18 @@
                     </ul>
                 </div>
                 <div class="card-footer bg-white">
-                    <a href="{% url 'eventos:detalle' evento.id %}" class="btn btn-primary w-100">
+                    <a href="{% url 'eventos:detalle' evento.id %}" class="btn btn-primary w-100 mb-2">
                         Ver Detalles <i class="bi bi-arrow-right"></i>
                     </a>
+                    {% if request.session.usuario_id %}
+                    <a href="{% url 'boletos:comprar' evento.id %}" class="btn btn-success w-100">
+                        Comprar boletos <i class="bi bi-cart-plus"></i>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'usuarios:login' %}" class="btn btn-secondary w-100">
+                        Iniciar sesión para comprar
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -37,18 +37,59 @@ def comprar_boleto(request, evento_id):
         
         categorias = []
         for row in cursor.fetchall():
+            categoria_id = row[0]
+            cantidad_asientos = row[3] or 0
+
+            # Contar boletos vendidos/pagados por categoría para calcular disponibles
+            cursor.execute("""
+                SELECT COUNT(*) FROM Boletos
+                WHERE id_evento = %s AND id_categoria = %s AND estado IN ('pagado','validado')
+            """, [evento_id, categoria_id])
+            vendidos = cursor.fetchone()[0]
+            disponibles = cantidad_asientos - vendidos if cantidad_asientos else None
+
             categorias.append({
-                'id': row[0],
+                'id': categoria_id,
                 'nombre': row[1],
                 'precio': row[2],
-                'cantidad_asientos': row[3],
+                'cantidad_asientos': cantidad_asientos,
+                'disponibles': disponibles,
             })
     
     if request.method == 'POST':
-        categoria_id = request.POST.get('categoria')
-        cantidad = int(request.POST.get('cantidad', 1))
-        
-        return redirect('pagos:procesar', evento_id=evento_id, categoria_id=categoria_id, cantidad=cantidad)
+        # Si no existen categorías, permitimos comprar sin categoría
+        categorias_existentes = categorias and len(categorias) > 0
+        if categorias_existentes:
+            categoria_id = request.POST.get('categoria')
+        else:
+            categoria_id = None
+
+        try:
+            cantidad = int(request.POST.get('cantidad', 1))
+        except (ValueError, TypeError):
+            messages.error(request, 'Cantidad inválida')
+            return render(request, 'boletos/comprar.html', {'evento': evento, 'categorias': categorias})
+
+        # Si hay categorías, validar la selección y disponibilidad
+        if categorias_existentes:
+            selected = None
+            for c in categorias:
+                if str(c['id']) == str(categoria_id):
+                    selected = c
+                    break
+
+            if not selected:
+                messages.error(request, 'Categoría no encontrada')
+                return render(request, 'boletos/comprar.html', {'evento': evento, 'categorias': categorias})
+
+            if selected.get('disponibles') is not None and cantidad > selected.get('disponibles'):
+                messages.error(request, f'Solo hay {selected.get("disponibles")} boletos disponibles en esta categoría')
+                return render(request, 'boletos/comprar.html', {'evento': evento, 'categorias': categorias})
+
+            return redirect('pagos:procesar', evento_id=evento_id, categoria_id=categoria_id, cantidad=cantidad)
+
+        # Si no hay categorías: redirigir a procesar sin categoría
+        return redirect('pagos:procesar_sin_categoria', evento_id=evento_id, cantidad=cantidad)
     
     context = {
         'evento': evento,
